@@ -3,9 +3,7 @@ from __future__ import annotations
 import unittest
 from datetime import datetime, timedelta, timezone
 
-from navidrome_history_report import (
-    Play,
-    Track,
+from albums import (
     aggregate_album_completion,
     aggregate_album_threads,
     album_catalog,
@@ -13,7 +11,7 @@ from navidrome_history_report import (
     build_album_runs,
     build_album_threads,
 )
-
+from models import Play, Track
 
 BASE_TIME = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
 
@@ -135,7 +133,9 @@ class AlbumCatalogTests(unittest.TestCase):
 
 
 class AlbumRunTests(unittest.TestCase):
-    def test_repeated_tracks_do_not_inflate_coverage_and_long_pause_splits_run(self) -> None:
+    def test_repeated_tracks_do_not_inflate_coverage_and_long_pause_splits_run(
+        self,
+    ) -> None:
         tracks = make_album()
         plays = [
             play(tracks["a1"], 0),
@@ -245,7 +245,10 @@ class AlbumCompletionTests(unittest.TestCase):
         tracks = make_album()
         plays = [
             *(play(tracks[f"a{position}"], position * 5) for position in range(1, 6)),
-            *(play(tracks[f"a{position}"], 60 + position * 5) for position in range(1, 4)),
+            *(
+                play(tracks[f"a{position}"], 60 + position * 5)
+                for position in range(1, 4)
+            ),
             play(tracks["a4"], 120),
         ]
         runs = build_album_runs(plays, tracks, gap_minutes=30, complete_threshold=0.8)

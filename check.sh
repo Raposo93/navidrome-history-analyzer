@@ -36,6 +36,13 @@ echo "Running tests..."
 PYTHONDONTWRITEBYTECODE=1 "$PROJECT_PYTHON" -m unittest discover -v
 
 echo
+echo "Running static checks..."
+
+"$PROJECT_PYTHON" -m ruff check .
+"$PROJECT_PYTHON" -m ruff format .
+"$PROJECT_PYTHON" -m pyright
+
+echo
 echo "Checking CLI startup..."
 
 PYTHONDONTWRITEBYTECODE=1 "$PROJECT_PYTHON" navidrome_history_report.py --help >/dev/null

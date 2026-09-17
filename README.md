@@ -28,3 +28,28 @@ Use `--help` to see the available filters and analysis thresholds:
 ```bash
 python3 navidrome_history_report.py --help
 ```
+
+## Development
+
+The analyzer has no third-party runtime dependencies. Development checks use
+Ruff and Pyright:
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements-dev.txt
+./check.sh
+```
+
+`check.sh` runs the unit and CLI integration tests, Ruff checks and formatting,
+Pyright, and a CLI startup smoke test.
+
+The implementation follows a one-way data flow:
+
+```text
+SQLite loading (db.py) -> analysis (analysis.py, albums.py)
+                       -> CSV exports (exports.py)
+                       -> text presentation (report.py)
+                       -> orchestration (cli.py)
+```
+
+`navidrome_history_report.py` remains the compatible command-line entry point.
