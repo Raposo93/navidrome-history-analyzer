@@ -10,18 +10,21 @@ read-only mode.
 Run the analyzer with the path to an existing `navidrome.db`:
 
 ```bash
-python3 navidrome_history_report_v4.py /path/to/navidrome.db
+python3 navidrome_history_report.py /path/to/navidrome.db
 ```
 
 By default, generated files are written to `navidrome_report/`. Use `-o` to
 choose a different output directory:
 
 ```bash
-python3 navidrome_history_report_v4.py /path/to/navidrome.db -o /path/to/output
+python3 navidrome_history_report.py /path/to/navidrome.db -o /path/to/output
 ```
+
+The selected directory contains `report.txt` and the CSV datasets supported by
+the history source detected in the database.
 
 Use `--help` to see the available filters and analysis thresholds:
 
 ```bash
-python3 navidrome_history_report_v4.py --help
+python3 navidrome_history_report.py --help
 ```
