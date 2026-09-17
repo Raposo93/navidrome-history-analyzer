@@ -7,12 +7,12 @@ import statistics
 import unicodedata
 from bisect import bisect_left
 from collections import Counter, defaultdict
-from datetime import timedelta
+from datetime import datetime, timedelta
 from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
-from models import Play, Track
+from models import AnnotationPlay, Play, Track
 from utils import norm, parse_dt
 
 
@@ -53,6 +53,95 @@ def album_catalog(tracks: dict[str, Track]) -> dict[str, dict[str, Any]]:
             "year": min((t.year for t in ts if t.year), default=None),
         }
     return out
+
+
+def album_library_coverage(
+    tracks: dict[str, Track],
+    plays: list[Play],
+    annotation_history: dict[tuple[str, str], AnnotationPlay],
+    users: dict[str, str],
+    selected_users: set[str] | None,
+) -> list[dict[str, Any]]:
+    """Summarize known listening evidence for every current-library album.
+
+    A positive annotation counter or a temporal play marks a track as heard. For
+    play counts, a track's annotation counter is authoritative when present;
+    otherwise its temporal play count is used. The most recent timestamp known
+    from either source supplies ``last_played``.
+    """
+    catalog = album_catalog(tracks)
+    temporal_counts: Counter[tuple[str, str]] = Counter()
+    temporal_last: dict[tuple[str, str], datetime] = {}
+    observed_user_ids = {user_id for user_id, _ in annotation_history}
+
+    for item in plays:
+        key = (item.user_id, item.track_id)
+        observed_user_ids.add(item.user_id)
+        temporal_counts[key] += 1
+        if key not in temporal_last or item.at > temporal_last[key]:
+            temporal_last[key] = item.at
+
+    if selected_users is not None:
+        user_ids = set(selected_users)
+    else:
+        user_ids = set(users) | observed_user_ids
+    if not user_ids:
+        user_ids = {""}
+
+    rows: list[dict[str, Any]] = []
+    for user_id in user_ids:
+        user_name = users.get(user_id, user_id or "(usuario desconocido)")
+        for album in catalog.values():
+            album_tracks: list[Track] = album["tracks"]
+            tracks_heard = 0
+            play_count = 0
+            known_dates: list[datetime] = []
+
+            for track in album_tracks:
+                key = (user_id, track.id)
+                annotation = annotation_history.get(key)
+                temporal_count = temporal_counts[key]
+                if annotation is not None or temporal_count > 0:
+                    tracks_heard += 1
+                play_count += (
+                    annotation.play_count if annotation is not None else temporal_count
+                )
+                if annotation is not None and annotation.last_played is not None:
+                    known_dates.append(annotation.last_played)
+                if key in temporal_last:
+                    known_dates.append(temporal_last[key])
+
+            total_tracks = int(album["track_count"])
+            last_played = max(known_dates).isoformat(sep=" ") if known_dates else ""
+            genre = next((track.genre for track in album_tracks if track.genre), "")
+            rows.append(
+                {
+                    "user": user_name,
+                    "album_id": album["album_id"],
+                    "artist": album["artist"],
+                    "album": album["album"],
+                    "total_tracks": total_tracks,
+                    "tracks_heard": tracks_heard,
+                    "tracks_unheard": total_tracks - tracks_heard,
+                    "heard_pct": round(100 * tracks_heard / total_tracks, 1)
+                    if total_tracks
+                    else 0.0,
+                    "play_count": play_count,
+                    "last_played": last_played,
+                    "year": album["year"] or "",
+                    "genre": genre,
+                }
+            )
+
+    rows.sort(
+        key=lambda row: (
+            str(row["user"]).casefold(),
+            str(row["artist"]).casefold(),
+            str(row["album"]).casefold(),
+            str(row["album_id"]),
+        )
+    )
+    return rows
 
 
 def build_album_runs(

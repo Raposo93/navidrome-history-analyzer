@@ -44,6 +44,7 @@ class CliIntegrationTests(unittest.TestCase):
             expected_files = {
                 "album_completion.csv",
                 "album_eras.csv",
+                "album_library_coverage.csv",
                 "album_resume_events.csv",
                 "album_resurrections.csv",
                 "album_runs.csv",
@@ -98,6 +99,16 @@ class CliIntegrationTests(unittest.TestCase):
                     "mbid",
                 ],
             )
+            self.assertEqual(
+                self._csv_header(output_path / "album_library_coverage.csv"),
+                self._coverage_header(),
+            )
+            coverage_rows = self._csv_rows(output_path / "album_library_coverage.csv")
+            self.assertEqual(len(coverage_rows), 1)
+            self.assertEqual(coverage_rows[0]["user"], "Alice")
+            self.assertEqual(coverage_rows[0]["total_tracks"], "3")
+            self.assertEqual(coverage_rows[0]["tracks_heard"], "3")
+            self.assertEqual(coverage_rows[0]["play_count"], "3")
             self.assertEqual(
                 self._csv_header(output_path / "album_threads.csv"),
                 [
@@ -168,8 +179,21 @@ class CliIntegrationTests(unittest.TestCase):
             self.assertIn("usando play_count de annotation", result.stdout)
             self.assertEqual(
                 {path.name for path in output_path.iterdir()},
-                {"legacy_playcounts.csv", "report.txt"},
+                {
+                    "album_library_coverage.csv",
+                    "legacy_playcounts.csv",
+                    "report.txt",
+                },
             )
+            self.assertEqual(
+                self._csv_header(output_path / "album_library_coverage.csv"),
+                self._coverage_header(),
+            )
+            coverage_rows = self._csv_rows(output_path / "album_library_coverage.csv")
+            self.assertEqual(len(coverage_rows), 1)
+            self.assertEqual(coverage_rows[0]["user"], "Alice")
+            self.assertEqual(coverage_rows[0]["tracks_heard"], "1")
+            self.assertEqual(coverage_rows[0]["play_count"], "7")
             self.assertEqual(
                 self._csv_header(output_path / "legacy_playcounts.csv"),
                 [
@@ -355,6 +379,28 @@ class CliIntegrationTests(unittest.TestCase):
     def _csv_header(path: Path) -> list[str]:
         with path.open(encoding="utf-8", newline="") as csv_file:
             return next(csv.reader(csv_file))
+
+    @staticmethod
+    def _csv_rows(path: Path) -> list[dict[str, str]]:
+        with path.open(encoding="utf-8", newline="") as csv_file:
+            return list(csv.DictReader(csv_file))
+
+    @staticmethod
+    def _coverage_header() -> list[str]:
+        return [
+            "user",
+            "album_id",
+            "artist",
+            "album",
+            "total_tracks",
+            "tracks_heard",
+            "tracks_unheard",
+            "heard_pct",
+            "play_count",
+            "last_played",
+            "year",
+            "genre",
+        ]
 
 
 if __name__ == "__main__":

@@ -6,7 +6,7 @@ import sys
 from collections.abc import Iterable
 from typing import Any
 
-from models import HistorySource, Play, Track
+from models import AnnotationPlay, HistorySource, Play, Track
 from utils import norm, parse_dt, qident
 
 
@@ -352,6 +352,73 @@ def load_annotation_playcounts(
         except (TypeError, ValueError):
             pass
     return out
+
+
+def load_annotation_history(
+    db: sqlite3.Connection,
+    schema: Schema,
+    selected_users: set[str] | None,
+) -> dict[tuple[str, str], AnnotationPlay]:
+    if not schema.has("annotation"):
+        return {}
+
+    table = "annotation"
+    user_column = schema.col(table, ("user_id",))
+    item_column = schema.col(table, ("item_id",))
+    type_column = schema.col(table, ("item_type",))
+    count_column = schema.col(table, ("play_count", "playcount"))
+    date_column = schema.col(table, ("play_date", "last_played", "played_at"))
+    if not item_column or not count_column:
+        return {}
+
+    select = [
+        f"{qident(item_column)} AS item_id",
+        f"{qident(count_column)} AS play_count",
+        f"{qident(user_column)} AS user_id" if user_column else "'' AS user_id",
+        f"{qident(date_column)} AS play_date" if date_column else "NULL AS play_date",
+    ]
+    where = [f"COALESCE({qident(count_column)}, 0) > 0"]
+    arguments: list[Any] = []
+
+    if type_column:
+        values = [
+            norm(row[0])
+            for row in db.execute(
+                f"SELECT DISTINCT {qident(type_column)} FROM {qident(table)} LIMIT 30"
+            )
+        ]
+        accepted = next(
+            (
+                value
+                for value in values
+                if value.lower() in {"media_file", "song", "track"}
+            ),
+            None,
+        )
+        if accepted:
+            where.append(f"{qident(type_column)} = ?")
+            arguments.append(accepted)
+
+    if selected_users and user_column:
+        placeholders = ",".join("?" for _ in selected_users)
+        where.append(f"{qident(user_column)} IN ({placeholders})")
+        arguments.extend(sorted(selected_users))
+
+    sql = f"SELECT {', '.join(select)} FROM {qident(table)} WHERE " + " AND ".join(
+        where
+    )
+    history: dict[tuple[str, str], AnnotationPlay] = {}
+    for row in db.execute(sql, arguments):
+        try:
+            play_count = int(row["play_count"] or 0)
+        except (TypeError, ValueError):
+            continue
+        key = (norm(row["user_id"]), norm(row["item_id"]))
+        history[key] = AnnotationPlay(
+            play_count=play_count,
+            last_played=parse_dt(row["play_date"]),
+        )
+    return history
 
 
 def load_legacy_playcounts(

@@ -23,6 +23,14 @@ python3 navidrome_history_report.py /path/to/navidrome.db -o /path/to/output
 The selected directory contains `report.txt` and the CSV datasets supported by
 the history source detected in the database.
 
+`album_library_coverage.csv` contains one row per current-library album and
+user, including albums with no known plays. Track coverage uses any known
+listening evidence. For `play_count`, an accumulated `annotation.play_count`
+is preferred for a track when present; otherwise temporal scrobbles are used.
+The two sources are not added together because Navidrome does not guarantee
+that their counters are perfectly equivalent. `last_played` is the latest
+known timestamp from either source.
+
 Use `--help` to see the available filters and analysis thresholds:
 
 ```bash

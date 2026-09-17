@@ -6,6 +6,20 @@ from pathlib import Path
 from typing import Any
 
 CSV_FIELDS: dict[str, list[str]] = {
+    "album_library_coverage.csv": [
+        "user",
+        "album_id",
+        "artist",
+        "album",
+        "total_tracks",
+        "tracks_heard",
+        "tracks_unheard",
+        "heard_pct",
+        "play_count",
+        "last_played",
+        "year",
+        "genre",
+    ],
     "album_completion.csv": [
         "user",
         "album_key",

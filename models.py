@@ -37,3 +37,9 @@ class Play:
     user_id: str
     user_name: str
     track: Track
+
+
+@dataclass(frozen=True)
+class AnnotationPlay:
+    play_count: int
+    last_played: datetime | None

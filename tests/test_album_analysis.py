@@ -8,10 +8,11 @@ from albums import (
     aggregate_album_threads,
     album_catalog,
     album_key,
+    album_library_coverage,
     build_album_runs,
     build_album_threads,
 )
-from models import Play, Track
+from models import AnnotationPlay, Play, Track
 
 BASE_TIME = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
 
@@ -130,6 +131,80 @@ class AlbumCatalogTests(unittest.TestCase):
         self.assertEqual(album_key(track_1), album_key(track_2))
         self.assertEqual(len(catalog), 1)
         self.assertEqual(next(iter(catalog.values()))["track_count"], 2)
+
+
+class AlbumLibraryCoverageTests(unittest.TestCase):
+    def test_combines_known_evidence_without_merging_users_or_editions(self) -> None:
+        first_edition = make_album(count=3)
+        second_edition = make_album(count=2, prefix="b", album_id="album-b")
+        tracks = {**first_edition, **second_edition}
+        plays = [
+            play(first_edition["a1"], 0),
+            play(first_edition["a2"], 10),
+            play(first_edition["a2"], 20),
+        ]
+        annotations = {
+            ("user-1", "a1"): AnnotationPlay(
+                play_count=5,
+                last_played=BASE_TIME + timedelta(minutes=5),
+            ),
+            ("user-2", "b1"): AnnotationPlay(
+                play_count=4,
+                last_played=BASE_TIME + timedelta(minutes=15),
+            ),
+        }
+
+        rows = album_library_coverage(
+            tracks=tracks,
+            plays=plays,
+            annotation_history=annotations,
+            users={"user-1": "Alice", "user-2": "Bob"},
+            selected_users=None,
+        )
+
+        self.assertEqual(len(rows), 4)
+        by_user_and_edition = {(row["user"], row["album_id"]): row for row in rows}
+        alice_first = by_user_and_edition[("Alice", "album-a")]
+        self.assertEqual(alice_first["total_tracks"], 3)
+        self.assertEqual(alice_first["tracks_heard"], 2)
+        self.assertEqual(alice_first["tracks_unheard"], 1)
+        self.assertEqual(alice_first["heard_pct"], 66.7)
+        self.assertEqual(alice_first["play_count"], 7)
+        self.assertEqual(
+            alice_first["last_played"],
+            (BASE_TIME + timedelta(minutes=20)).isoformat(sep=" "),
+        )
+
+        self.assertEqual(
+            by_user_and_edition[("Alice", "album-b")]["tracks_heard"],
+            0,
+        )
+        self.assertEqual(
+            by_user_and_edition[("Bob", "album-a")]["tracks_heard"],
+            0,
+        )
+        bob_second = by_user_and_edition[("Bob", "album-b")]
+        self.assertEqual(bob_second["tracks_heard"], 1)
+        self.assertEqual(bob_second["play_count"], 4)
+
+    def test_selected_user_limits_rows_but_keeps_unheard_albums(self) -> None:
+        tracks = {
+            **make_album(count=1),
+            **make_album(count=1, prefix="b", album_id="album-b", album="Album B"),
+        }
+
+        rows = album_library_coverage(
+            tracks=tracks,
+            plays=[],
+            annotation_history={},
+            users={"user-1": "Alice", "user-2": "Bob"},
+            selected_users={"user-2"},
+        )
+
+        self.assertEqual(len(rows), 2)
+        self.assertEqual({row["user"] for row in rows}, {"Bob"})
+        self.assertTrue(all(row["tracks_heard"] == 0 for row in rows))
+        self.assertTrue(all(row["heard_pct"] == 0.0 for row in rows))
 
 
 class AlbumRunTests(unittest.TestCase):

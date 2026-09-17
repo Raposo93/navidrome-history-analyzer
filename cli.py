@@ -5,9 +5,11 @@ import sqlite3
 import sys
 from pathlib import Path
 
+from albums import album_library_coverage
 from db import (
     Schema,
     detect_history_source,
+    load_annotation_history,
     load_annotation_playcounts,
     load_legacy_playcounts,
     load_plays,
@@ -15,6 +17,7 @@ from db import (
     load_users,
     resolve_user_ids,
 )
+from exports import write_export
 from report import history_report_v4, legacy_annotations, library_report
 
 
@@ -91,6 +94,7 @@ def main() -> int:
         tracks = load_tracks(db, schema)
         users = load_users(db, schema)
         selected = resolve_user_ids(users, args.user)
+        annotation_history = load_annotation_history(db, schema, selected)
         annotation_counts = load_annotation_playcounts(db, schema, selected)
 
         if users:
@@ -107,6 +111,10 @@ def main() -> int:
                 f"(pista={source.media_col}, fecha={source.time_col})"
             )
             plays = load_plays(db, schema, source, tracks, users, selected)
+            coverage = album_library_coverage(
+                tracks, plays, annotation_history, users, selected
+            )
+            write_export(args.output / "album_library_coverage.csv", coverage)
 
             report = history_report_v4(
                 plays=plays,
@@ -126,6 +134,10 @@ def main() -> int:
             report += "\n" + library_report(tracks, plays)
         else:
             print("No encuentro historial temporal; usando play_count de annotation.")
+            coverage = album_library_coverage(
+                tracks, [], annotation_history, users, selected
+            )
+            write_export(args.output / "album_library_coverage.csv", coverage)
             try:
                 legacy_rows = load_legacy_playcounts(
                     db, schema, tracks, users, selected
