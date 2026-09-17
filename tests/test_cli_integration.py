@@ -109,6 +109,7 @@ class CliIntegrationTests(unittest.TestCase):
             self.assertEqual(coverage_rows[0]["total_tracks"], "3")
             self.assertEqual(coverage_rows[0]["tracks_heard"], "3")
             self.assertEqual(coverage_rows[0]["play_count"], "3")
+            self.assertEqual(coverage_rows[0]["added_at"], "")
             self.assertEqual(
                 self._csv_header(output_path / "album_threads.csv"),
                 [
@@ -392,6 +393,7 @@ class CliIntegrationTests(unittest.TestCase):
             "album_id",
             "artist",
             "album",
+            "added_at",
             "total_tracks",
             "tracks_heard",
             "tracks_unheard",

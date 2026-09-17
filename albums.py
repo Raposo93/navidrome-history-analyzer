@@ -51,6 +51,9 @@ def album_catalog(tracks: dict[str, Track]) -> dict[str, dict[str, Any]]:
             "track_count": len(ts),
             "duration": sum(t.duration for t in ts),
             "year": min((t.year for t in ts if t.year), default=None),
+            "added_at": min(
+                (t.added_at for t in ts if t.added_at is not None), default=None
+            ),
         }
     return out
 
@@ -112,6 +115,7 @@ def album_library_coverage(
                     known_dates.append(temporal_last[key])
 
             total_tracks = int(album["track_count"])
+            added_at = album["added_at"]
             last_played = max(known_dates).isoformat(sep=" ") if known_dates else ""
             genre = next((track.genre for track in album_tracks if track.genre), "")
             rows.append(
@@ -120,6 +124,7 @@ def album_library_coverage(
                     "album_id": album["album_id"],
                     "artist": album["artist"],
                     "album": album["album"],
+                    "added_at": added_at.isoformat(sep=" ") if added_at else "",
                     "total_tracks": total_tracks,
                     "tracks_heard": tracks_heard,
                     "tracks_unheard": total_tracks - tracks_heard,

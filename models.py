@@ -28,6 +28,7 @@ class Track:
     disc_number: int
     path: str
     mbid: str
+    added_at: datetime | None = None
 
 
 @dataclass

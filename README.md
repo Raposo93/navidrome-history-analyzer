@@ -29,7 +29,10 @@ listening evidence. For `play_count`, an accumulated `annotation.play_count`
 is preferred for a track when present; otherwise temporal scrobbles are used.
 The two sources are not added together because Navidrome does not guarantee
 that their counters are perfectly equivalent. `last_played` is the latest
-known timestamp from either source.
+known timestamp from either source. `added_at` is the album's library-added
+date: it uses `album.created_at` when available and otherwise the oldest known
+`media_file.created_at` among the album's current tracks. It is empty when the
+database does not provide either timestamp.
 
 Use `--help` to see the available filters and analysis thresholds:
 

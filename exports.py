@@ -11,6 +11,7 @@ CSV_FIELDS: dict[str, list[str]] = {
         "album_id",
         "artist",
         "album",
+        "added_at",
         "total_tracks",
         "tracks_heard",
         "tracks_unheard",

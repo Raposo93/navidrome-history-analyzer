@@ -133,6 +133,18 @@ def load_tracks(db: sqlite3.Connection, schema: Schema) -> dict[str, Track]:
     if not idc:
         raise RuntimeError("media_file no tiene columna id.")
 
+    album_created_at: dict[str, Any] = {}
+    album_id_column = schema.col("album", ("id",))
+    album_created_column = schema.col("album", ("created_at",))
+    if album_id_column and album_created_column:
+        album_created_at = {
+            norm(row[0]): row[1]
+            for row in db.execute(
+                f"SELECT {qident(album_id_column)}, {qident(album_created_column)} "
+                f"FROM {qident('album')}"
+            )
+        }
+
     fields = {
         "title": c("title", "name"),
         "artist": c("artist", "artist_name"),
@@ -146,6 +158,7 @@ def load_tracks(db: sqlite3.Connection, schema: Schema) -> dict[str, Track]:
         "disc_number": c("disc_number", "disc"),
         "path": c("path", "file_path"),
         "mbid": c("mbz_recording_id", "mbz_track_id", "musicbrainz_id"),
+        "created_at": c("created_at"),
     }
 
     select = [f"{qident(idc)} AS id"]
@@ -180,12 +193,16 @@ def load_tracks(db: sqlite3.Connection, schema: Schema) -> dict[str, Track]:
                 return int(m.group()) if m else default
 
         tid = norm(d["id"])
+        album_id = norm(d["album_id"])
+        added_at = parse_dt(album_created_at.get(album_id))
+        if added_at is None:
+            added_at = parse_dt(d["created_at"])
         tracks[tid] = Track(
             id=tid,
             title=norm(d["title"]) or "(sin título)",
             artist=norm(d["artist"]) or "(artista desconocido)",
             album=norm(d["album"]) or "(álbum desconocido)",
-            album_id=norm(d["album_id"]),
+            album_id=album_id,
             album_artist=norm(d["album_artist"]),
             genre=norm(d["genre"]),
             year=year,
@@ -194,6 +211,7 @@ def load_tracks(db: sqlite3.Connection, schema: Schema) -> dict[str, Track]:
             disc_number=max(1, as_int(d["disc_number"], 1)),
             path=norm(d["path"]),
             mbid=norm(d["mbid"]),
+            added_at=added_at,
         )
     return tracks
 

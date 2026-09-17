@@ -27,6 +27,7 @@ def make_track(
     album_artist: str = "Artist A",
     disc_number: int = 1,
     year: int | None = 2020,
+    added_at: datetime | None = None,
 ) -> Track:
     return Track(
         id=track_id,
@@ -42,6 +43,7 @@ def make_track(
         disc_number=disc_number,
         path=f"{position:02d} - Track {position}.flac",
         mbid="",
+        added_at=added_at,
     )
 
 
@@ -134,6 +136,36 @@ class AlbumCatalogTests(unittest.TestCase):
 
 
 class AlbumLibraryCoverageTests(unittest.TestCase):
+    def test_added_at_distinguishes_old_new_and_unknown_unplayed_albums(self) -> None:
+        old_date = datetime(2020, 1, 1, tzinfo=timezone.utc)
+        new_date = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        tracks = {
+            "old": make_track("old", 1, album_id="old", album="Old", added_at=old_date),
+            "old-later": make_track(
+                "old-later",
+                2,
+                album_id="old",
+                album="Old",
+                added_at=old_date + timedelta(days=30),
+            ),
+            "new": make_track("new", 1, album_id="new", album="New", added_at=new_date),
+            "unknown": make_track("unknown", 1, album_id="unknown", album="Unknown"),
+        }
+
+        rows = album_library_coverage(
+            tracks=tracks,
+            plays=[],
+            annotation_history={},
+            users={"user-1": "Alice"},
+            selected_users=None,
+        )
+
+        by_album = {row["album_id"]: row for row in rows}
+        self.assertEqual(by_album["old"]["added_at"], old_date.isoformat(sep=" "))
+        self.assertEqual(by_album["new"]["added_at"], new_date.isoformat(sep=" "))
+        self.assertEqual(by_album["unknown"]["added_at"], "")
+        self.assertTrue(all(row["tracks_heard"] == 0 for row in rows))
+
     def test_combines_known_evidence_without_merging_users_or_editions(self) -> None:
         first_edition = make_album(count=3)
         second_edition = make_album(count=2, prefix="b", album_id="album-b")
