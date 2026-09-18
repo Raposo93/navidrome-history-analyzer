@@ -418,6 +418,87 @@ def _text_key(value: str) -> str:
     return " ".join(s.split())
 
 
+def _album_entity_text_key(value: str) -> str:
+    """Normalize harmless text variations without erasing edition metadata."""
+    normalized = (
+        unicodedata.normalize("NFKD", norm(value))
+        .encode("ascii", "ignore")
+        .decode("ascii")
+        .casefold()
+    )
+    return " ".join(re.sub(r"[^a-z0-9]+", " ", normalized).split())
+
+
+def suspicious_album_entities(tracks: dict[str, Track]) -> list[dict[str, Any]]:
+    """Flag separate album entities that may represent metadata fragmentation.
+
+    A short album is not suspicious by itself. Entities are only reported when
+    their normalized album artist and title match another distinct album entity.
+    The original identities remain separate; this diagnostic never merges them.
+    """
+    catalog = album_catalog(tracks)
+    matched: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
+    for album in catalog.values():
+        match_key = (
+            _album_entity_text_key(str(album["artist"])),
+            _album_entity_text_key(str(album["album"])),
+        )
+        if all(match_key):
+            matched[match_key].append(album)
+
+    rows: list[dict[str, Any]] = []
+    for group in matched.values():
+        if len(group) < 2:
+            continue
+
+        raw_artists = {str(album["artist"]) for album in group}
+        for album in group:
+            album_tracks: list[Track] = album["tracks"]
+            related = [other for other in group if other is not album]
+            signals = ["same_title_artist_multiple_entities"]
+            if int(album["track_count"]) <= 2 and any(
+                int(other["track_count"]) > 2 for other in related
+            ):
+                signals.append("small_fragment_of_larger_entity")
+            if len(raw_artists) > 1:
+                signals.append("album_artist_format_variation")
+
+            rows.append(
+                {
+                    "album_key": album["album_key"],
+                    "album_id": album["album_id"],
+                    "artist": album["artist"],
+                    "album": album["album"],
+                    "year": album["year"] or "",
+                    "track_count": album["track_count"],
+                    "track_ids": "; ".join(track.id for track in album_tracks),
+                    "track_titles": "; ".join(track.title for track in album_tracks),
+                    "paths": "; ".join(track.path for track in album_tracks),
+                    "related_album_ids": "; ".join(
+                        sorted(
+                            str(other["album_id"])
+                            for other in related
+                            if other["album_id"]
+                        )
+                    ),
+                    "related_album_keys": "; ".join(
+                        sorted(str(other["album_key"]) for other in related)
+                    ),
+                    "signals": ",".join(signals),
+                }
+            )
+
+    rows.sort(
+        key=lambda row: (
+            str(row["artist"]).casefold(),
+            str(row["album"]).casefold(),
+            int(row["track_count"]),
+            str(row["album_key"]),
+        )
+    )
+    return rows
+
+
 def path_track_number(path: str) -> int:
     stem = Path(norm(path)).stem
     m = re.match(r"^\s*(\d{1,3})(?:\s*[-._)\]]+\s*|\s+)", stem)

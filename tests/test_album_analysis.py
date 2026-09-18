@@ -11,6 +11,7 @@ from albums import (
     album_library_coverage,
     build_album_runs,
     build_album_threads,
+    suspicious_album_entities,
 )
 from models import AnnotationPlay, Play, Track
 
@@ -237,6 +238,52 @@ class AlbumLibraryCoverageTests(unittest.TestCase):
         self.assertEqual({row["user"] for row in rows}, {"Bob"})
         self.assertTrue(all(row["tracks_heard"] == 0 for row in rows))
         self.assertTrue(all(row["heard_pct"] == 0.0 for row in rows))
+
+
+class SuspiciousAlbumEntityTests(unittest.TestCase):
+    def test_flags_duplicate_entities_and_identifies_small_fragment(self) -> None:
+        complete = make_album(count=5)
+        fragment = make_album(count=1, prefix="b", album_id="album-b")
+
+        rows = suspicious_album_entities({**complete, **fragment})
+
+        self.assertEqual(len(rows), 2)
+        by_id = {row["album_id"]: row for row in rows}
+        self.assertEqual(by_id["album-a"]["related_album_ids"], "album-b")
+        self.assertEqual(by_id["album-b"]["track_ids"], "b1")
+        self.assertIn("small_fragment_of_larger_entity", by_id["album-b"]["signals"])
+        self.assertNotIn("small_fragment_of_larger_entity", by_id["album-a"]["signals"])
+
+    def test_flags_format_only_album_artist_variation(self) -> None:
+        first = make_album(count=3)
+        second = {
+            "b1": make_track(
+                "b1",
+                1,
+                album_id="album-b",
+                album_artist="Artist-A",
+            )
+        }
+
+        rows = suspicious_album_entities({**first, **second})
+
+        self.assertEqual(len(rows), 2)
+        self.assertTrue(
+            all("album_artist_format_variation" in row["signals"] for row in rows)
+        )
+
+    def test_does_not_flag_legitimate_short_or_same_title_other_artist(self) -> None:
+        short_album = make_album(count=2)
+        other_artist = make_album(
+            count=4,
+            prefix="b",
+            album_id="album-b",
+            artist="Artist B",
+        )
+
+        rows = suspicious_album_entities({**short_album, **other_artist})
+
+        self.assertEqual(rows, [])
 
 
 class AlbumRunTests(unittest.TestCase):

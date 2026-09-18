@@ -663,6 +663,7 @@ def legacy_annotations(
 def library_report(
     tracks: dict[str, Track],
     plays: list[Play] | None,
+    album_issues: list[dict[str, Any]] | None = None,
 ) -> str:
     total_tracks = len(tracks)
     artists = {t.artist for t in tracks.values()}
@@ -695,5 +696,25 @@ def library_report(
         lines += ["", "Géneros más presentes en la biblioteca:"]
         for g, n in genres.most_common(20):
             lines.append(f"{n:7d}  {g}")
+
+    album_issues = album_issues or []
+    lines += [
+        "",
+        "DIAGNÓSTICO DE ENTIDADES DE ÁLBUM",
+        "-" * 72,
+        (
+            f"Entidades potencialmente fragmentadas o duplicadas: {len(album_issues):,}"
+        ).replace(",", "."),
+        (
+            "Son avisos conservadores para revisión manual; no se han fusionado ni "
+            "modificado metadatos."
+        ),
+    ]
+    for issue in album_issues[:20]:
+        lines.append(
+            f"{issue['artist']} — {issue['album']} "
+            f"[{issue['album_id'] or issue['album_key']}] | "
+            f"{issue['track_count']} pistas | {issue['signals']}"
+        )
 
     return "\n".join(lines) + "\n"

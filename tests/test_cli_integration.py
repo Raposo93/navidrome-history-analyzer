@@ -45,6 +45,7 @@ class CliIntegrationTests(unittest.TestCase):
                 "album_completion.csv",
                 "album_eras.csv",
                 "album_library_coverage.csv",
+                "album_metadata_issues.csv",
                 "album_resume_events.csv",
                 "album_resurrections.csv",
                 "album_runs.csv",
@@ -103,6 +104,10 @@ class CliIntegrationTests(unittest.TestCase):
                 self._csv_header(output_path / "album_library_coverage.csv"),
                 self._coverage_header(),
             )
+            self.assertEqual(
+                self._csv_header(output_path / "album_metadata_issues.csv"),
+                self._album_issue_header(),
+            )
             coverage_rows = self._csv_rows(output_path / "album_library_coverage.csv")
             self.assertEqual(len(coverage_rows), 1)
             self.assertEqual(coverage_rows[0]["user"], "Alice")
@@ -150,6 +155,7 @@ class CliIntegrationTests(unittest.TestCase):
             self.assertIn("NAVIDROME — RADIOGRAFÍA DE ESCUCHA", report)
             self.assertIn("V4 — HILOS LÓGICOS DE ÁLBUM", report)
             self.assertIn("BIBLIOTECA", report)
+            self.assertIn("DIAGNÓSTICO DE ENTIDADES DE ÁLBUM", report)
 
     def test_legacy_annotations_keep_expected_output_and_database_read_only(
         self,
@@ -182,6 +188,7 @@ class CliIntegrationTests(unittest.TestCase):
                 {path.name for path in output_path.iterdir()},
                 {
                     "album_library_coverage.csv",
+                    "album_metadata_issues.csv",
                     "legacy_playcounts.csv",
                     "report.txt",
                 },
@@ -189,6 +196,10 @@ class CliIntegrationTests(unittest.TestCase):
             self.assertEqual(
                 self._csv_header(output_path / "album_library_coverage.csv"),
                 self._coverage_header(),
+            )
+            self.assertEqual(
+                self._csv_header(output_path / "album_metadata_issues.csv"),
+                self._album_issue_header(),
             )
             coverage_rows = self._csv_rows(output_path / "album_library_coverage.csv")
             self.assertEqual(len(coverage_rows), 1)
@@ -213,6 +224,7 @@ class CliIntegrationTests(unittest.TestCase):
             self.assertIn("RADIOGRAFÍA DE ESCUCHA (MODO LEGACY)", report)
             self.assertIn("Reproducciones acumuladas según annotation: 7", report)
             self.assertIn("BIBLIOTECA", report)
+            self.assertIn("DIAGNÓSTICO DE ENTIDADES DE ÁLBUM", report)
 
     @staticmethod
     def _create_temporal_database(path: Path) -> None:
@@ -402,6 +414,23 @@ class CliIntegrationTests(unittest.TestCase):
             "last_played",
             "year",
             "genre",
+        ]
+
+    @staticmethod
+    def _album_issue_header() -> list[str]:
+        return [
+            "album_key",
+            "album_id",
+            "artist",
+            "album",
+            "year",
+            "track_count",
+            "track_ids",
+            "track_titles",
+            "paths",
+            "related_album_ids",
+            "related_album_keys",
+            "signals",
         ]
 
 

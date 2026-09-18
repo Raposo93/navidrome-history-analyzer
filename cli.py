@@ -5,7 +5,7 @@ import sqlite3
 import sys
 from pathlib import Path
 
-from albums import album_library_coverage
+from albums import album_library_coverage, suspicious_album_entities
 from db import (
     Schema,
     detect_history_source,
@@ -96,6 +96,8 @@ def main() -> int:
         selected = resolve_user_ids(users, args.user)
         annotation_history = load_annotation_history(db, schema, selected)
         annotation_counts = load_annotation_playcounts(db, schema, selected)
+        album_issues = suspicious_album_entities(tracks)
+        write_export(args.output / "album_metadata_issues.csv", album_issues)
 
         if users:
             print("Usuarios detectados:")
@@ -131,7 +133,7 @@ def main() -> int:
                 annotation_counts=annotation_counts,
                 users=users,
             )
-            report += "\n" + library_report(tracks, plays)
+            report += "\n" + library_report(tracks, plays, album_issues)
         else:
             print("No encuentro historial temporal; usando play_count de annotation.")
             coverage = album_library_coverage(
@@ -146,7 +148,7 @@ def main() -> int:
                 report = str(error)
             else:
                 report = legacy_annotations(legacy_rows, max(1, args.top), args.output)
-            report += "\n" + library_report(tracks, None)
+            report += "\n" + library_report(tracks, None, album_issues)
 
         (args.output / "report.txt").write_text(report, encoding="utf-8")
         print(f"\nInforme: {args.output / 'report.txt'}")

@@ -34,6 +34,14 @@ date: it uses `album.created_at` when available and otherwise the oldest known
 `media_file.created_at` among the album's current tracks. It is empty when the
 database does not provide either timestamp.
 
+`album_metadata_issues.csv` is a library-level diagnostic for album entities
+that may have been fragmented or duplicated by inconsistent metadata. It only
+flags distinct entities whose normalized album artist and title match. A
+one- or two-track album is not suspicious by itself, but is identified as a
+possible fragment when a matching entity has more tracks. The export preserves
+the original album IDs, track IDs, titles, and paths for manual review; it never
+merges albums or modifies Navidrome data.
+
 Use `--help` to see the available filters and analysis thresholds:
 
 ```bash
